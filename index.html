@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Inventarliste</title>
+  <style>
+    body {
+      position: relative;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url("file:///E:/Marchetti%20Lager/marchetti.png");
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-attachment: fixed;
+      opacity: 0.2;
+      z-index: -1;
+    }
+
+    body {
+      background-image: url("file:///E:/Marchetti%20Lager/marchetti.png");
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+
+      font-family: sans-serif;
+      background: #bebebe;
+      padding: 2rem;
+      display: flex;
+      flex-direction: row;
+    }
+    main {
+      flex: 3;
+    }
+    aside {
+      flex: none;
+      width: 300px;
+      background: white;
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      height: fit-content;
+    }
+    #inventory {
+      max-height: 300px;
+      overflow-y: auto;
+      display: block;
+    }
+
+    table {
+      width: 60%;
+      margin-left: 0;
+      table-layout: fixed;
+      border-collapse: collapse;
+      background: white;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      width: calc(200% / 3);
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    input, button {
+      width: 120px;
+      width: calc(100% / 4 - 10px);
+      margin: 5px 0;
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      cursor: pointer;
+    }
+    .actions button {
+      margin-right: 5px;
+    }
+    #log {
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 0.9em;
+    }
+    #log div {
+      margin-bottom: 5px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 5px;
+    }
+  </style>
+
+</head>
+<body style="display: none;">
+  <main>
+    <h1>📦 Inventarliste</h1>
+
+    <form id="addForm">
+      <input type="text" id="item" placeholder="Artikel" required>
+      <input type="number" id="quantity" placeholder="Menge" required>
+      <input type="text" id="note" placeholder="Name" required>
+      <button type="submit">Hinzufügen</button>
+    </form>
+
+    <table id="inventory">
+      <thead>
+        <tr>
+          <th>Artikel</th>
+          <th>Menge</th>
+          <th>Name</th>
+          </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+  </main>
+
+  <aside>
+    <h2>📋 Aktivitäten</h2>
+    <div id="log"></div>
+  </aside>
+
+  <div id="menuWrapper" style="position: fixed; top: 0; left: 0; background: white; padding: 6px; border-radius: 0 0 8px 0; border: 1px solid #ccc; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+    <button id="toggleMenu" style="margin-bottom: 5px; background: none; border: none; font-size: 20px;">⚙️</button>
+    <div id="menuContent" style="display: none;">
+      <label for="adminPw">🛡️ Neues Adminpasswort:</label><br>
+      <input type="password" id="adminPw" placeholder="Neues Adminpasswort">
+      <button id="setAdminPw">Ändern</button><br><br>
+      <label for="userPw">🔑 Neues Benutzerpasswort:</label><br>
+      <input type="password" id="userPw" placeholder="Neues Passwort">
+      <button id="setUserPw">Ändern</button>
+    </div>
+  </div>
+
+
+  <script>
+    class InventarApp {
+      constructor(formId, tableId, logId) {
+        this.form = document.getElementById(formId);
+        this.table = document.querySelector(`#${tableId} tbody`);
+        this.log = document.getElementById(logId);
+        this.bindEvents();
+      }
+
+      bindEvents() {
+        this.form.addEventListener('submit', e => {
+          e.preventDefault();
+          const item = this.form.querySelector('#item').value.trim();
+          const quantity = this.form.querySelector('#quantity').value;
+          const note = this.form.querySelector('#note').value.trim();
+
+          if (!item) return alert('Bitte gib einen Artikelnamen ein.');
+          if (!quantity || quantity <= 0) return alert('Bitte gib eine gültige Menge ein (größer als 0).');
+
+          this.addEntry(item, quantity, note);
+          this.addLog(`Artikel hinzugefügt: ${item} (${quantity}) von ${note || 'unbekannt'}`);
+          this.form.reset();
+        });
+      }
+
+      addEntry(item, quantity, note) {
+        const row = document.createElement('tr');
+        [item, quantity, note].forEach(text => {
+          const td = document.createElement('td');
+          td.textContent = text;
+          row.appendChild(td);
+        });
+
+        
+        this.table.appendChild(row);
+      }
+
+      addLog(message) {
+        const entry = document.createElement('div');
+        entry.textContent = `${new Date().toLocaleString()}: ${message}`;
+        this.log.prepend(entry);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('toggleMenu').addEventListener('click', () => {
+        const content = document.getElementById('menuContent');
+        content.style.display = content.style.display === 'none' ? 'block' : 'none';
+      });
+
+      document.getElementById('setUserPw').addEventListener('click', () => {
+        if (!window.isAdmin) return alert('Nur Admins können das Benutzerpasswort ändern.');
+        const newUserPw = document.getElementById('userPw').value.trim();
+        if (!newUserPw) return alert('Bitte ein Passwort eingeben.');
+        localStorage.setItem('userPassword', newUserPw);
+        alert('Benutzerpasswort wurde geändert.');
+        document.getElementById('userPw').value = '';
+      });
+
+      document.getElementById('setAdminPw').addEventListener('click', () => {
+        if (document.body.dataset.role !== 'owner') return alert('Nur der Besitzer kann das Adminpasswort ändern.');
+        const newAdminPw = document.getElementById('adminPw').value.trim();
+        if (!newAdminPw) return alert('Bitte ein Passwort eingeben.');
+        localStorage.setItem('adminPassword', newAdminPw);
+        alert('Adminpasswort wurde geändert.');
+        document.getElementById('adminPw').value = '';
+      });
+      let storedAdminPassword = localStorage.getItem('adminPassword');
+      let storedUserPassword = localStorage.getItem('userPassword');
+      let storedOwnerPassword = localStorage.getItem('ownerPassword');
+      const defaultPasswords = {
+        owner: storedOwnerPassword || "owner123",
+        admin: storedAdminPassword || "admin123"
+      };
+
+      const entered = prompt("Passwort eingeben:");
+      if (entered === defaultPasswords.owner) {
+        document.body.dataset.role = "owner";
+        window.isAdmin = true;
+        document.body.style.display = "flex";
+        alert("Besitzer-Zugriff gewährt.");
+      } else if (entered === defaultPasswords.admin) {
+        document.body.dataset.role = "admin";
+        window.isAdmin = true;
+        document.body.style.display = "flex";
+        alert("Admin-Zugriff gewährt.");
+      } else if (entered === defaultPasswords.user) {
+        document.body.dataset.role = "user";
+        window.isAdmin = false;
+        document.body.style.display = "flex";
+      } else {
+        alert("Zugriff verweigert.");
+        document.body.innerHTML = "<h1>Zugriff verweigert</h1>";
+        return;
+      }
+      const app = new InventarApp('addForm', 'inventory', 'log');
+
+      // Kategorien-Container erstellen
+      const summaryContainer = document.createElement('div');
+      summaryContainer.id = 'summary';
+      summaryContainer.style.marginTop = '2rem';
+      summaryContainer.style.maxHeight = '300px';
+      summaryContainer.style.overflowY = 'auto';
+      const main = document.querySelector('main');
+      main.appendChild(summaryContainer);
+
+      app.updateSummary = function() {
+        const summary = {};
+        document.querySelectorAll('#inventory tbody tr').forEach(row => {
+          const cells = row.querySelectorAll('td');
+          const name = cells[0].textContent;
+          const qty = parseInt(cells[1].textContent);
+          if (!summary[name]) summary[name] = 0;
+          summary[name] += qty;
+        });
+        this.renderSummary(summary);
+      };
+
+      app.renderSummary = function(summary) {
+        const existingNames = ['Michael', 'John', 'Clemens', 'Tim', 'Manni', 'Francisco'];
+        const nameSet = new Set(existingNames);
+        if (!this.customNames) this.customNames = [...existingNames];
+        const container = document.getElementById('summary');
+        container.innerHTML = '<h2>📊 Lagerübersicht</h2>';
+        const ul = document.createElement('ul');
+        for (const key in summary) {
+          const li = document.createElement('li');
+          li.innerHTML = `${key}: <span id="count-${key}">${summary[key]}</span> Stück `;
+
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.min = '1';
+          input.placeholder = 'Menge';
+          input.style.width = '60px';
+
+          const select = document.createElement('select');
+          select.style.margin = '5px 0';
+          select.style.padding = '8px';
+          select.style.borderRadius = '5px';
+          select.style.border = '1px solid #ccc';
+          this.customNames.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            select.appendChild(option);
+          });
+
+          const btn = document.createElement('button');
+          btn.textContent = 'Entnehmen';
+          btn.type = 'button';
+          btn.onclick = () => {
+            const val = parseInt(input.value);
+            const countSpan = document.getElementById(`count-${key}`);
+            let current = parseInt(countSpan.textContent);
+            if (!val || val <= 0 || val > current) {
+              alert('Ungültige Menge zum Entnehmen');
+              return;
+            }
+            current -= val;
+            countSpan.textContent = current;
+
+            // Tabelle durchsuchen und Menge verringern oder Zeile entfernen
+            const rows = document.querySelectorAll('#inventory tbody tr');
+            let remaining = val;
+            rows.forEach(row => {
+              const cells = row.querySelectorAll('td');
+              if (cells[0].textContent === key && remaining > 0) {
+                let rowQty = parseInt(cells[1].textContent);
+                if (rowQty <= remaining) {
+                  remaining -= rowQty;
+                  row.remove();
+                } else {
+                  rowQty -= remaining;
+                  cells[1].textContent = rowQty;
+                  remaining = 0;
+                }
+              }
+            });
+
+            const who = select.value;
+            app.addLog(`Aus Kategorie '${key}' ${val} entnommen von ${who}`);
+          };
+
+          li.appendChild(input);
+          li.appendChild(select);
+          li.appendChild(btn);
+          ul.appendChild(li);
+        }
+        container.appendChild(ul);
+
+        // Namensfeld zum Hinzufügen eigener Optionen
+        const nameInput = document.createElement('input');
+        nameInput.placeholder = 'Neuer Name';
+        nameInput.style.marginRight = '8px';
+        nameInput.style.padding = '5px';
+        nameInput.style.borderRadius = '5px';
+        nameInput.style.border = '1px solid #ccc';
+        nameInput.style.width = '150px';
+
+        const nameBtn = document.createElement('button');
+        nameBtn.textContent = 'Hinzufügen';
+        nameBtn.style.padding = '6px 12px';
+        nameBtn.style.borderRadius = '5px';
+        nameBtn.style.border = '1px solid #ccc';
+        nameBtn.style.width = '150px';
+        nameBtn.onclick = () => {
+          if (!window.isAdmin) return alert('Nur Admins dürfen Namen hinzufügen.');
+          const newName = nameInput.value.trim();
+          if (newName && !this.customNames.includes(newName)) {
+            this.customNames.push(newName);
+            this.addLog(`Name hinzugefügt: ${newName}`);
+            this.updateSummary();
+
+            const li = document.createElement('li');
+            li.style.display = 'flex';
+            li.style.alignItems = 'center';
+            li.style.marginBottom = '5px';
+
+            const span = document.createElement('span');
+            span.textContent = newName;
+            span.style.flex = '1';
+
+            const del = document.createElement('button');
+            del.textContent = '❌';
+            del.style.marginLeft = '5px';
+            del.style.border = '1px solid #ccc';
+            del.style.borderRadius = '5px';
+            del.style.padding = '4px 8px';
+            del.onclick = () => {
+              if (!window.isAdmin) return alert('Nur Admins dürfen Namen löschen.');
+              this.customNames = this.customNames.filter(x => x !== newName);
+              this.addLog(`Name gelöscht: ${newName}`);
+              this.updateSummary();
+              li.remove();
+            };
+
+            li.appendChild(span);
+            li.appendChild(del);
+            nameList.appendChild(li);
+          }
+          nameInput.value = '';
+        };
+
+        const nameWrapper = document.createElement('div');
+        nameWrapper.style.position = 'fixed';
+        nameWrapper.style.bottom = '2rem';
+        nameWrapper.style.right = '2rem';
+        nameWrapper.style.background = 'white';
+        nameWrapper.style.padding = '10px';
+        nameWrapper.style.border = '1px solid #ccc';
+        nameWrapper.style.borderRadius = '8px';
+        nameWrapper.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
+        nameWrapper.style.zIndex = '1000';
+        nameWrapper.appendChild(nameInput);
+        nameWrapper.appendChild(nameBtn);
+
+        const nameList = document.createElement('ul');
+        nameList.style.listStyle = 'none';
+        nameList.style.padding = '0';
+        nameList.style.marginTop = '10px';
+        nameList.style.maxHeight = '200px';
+        nameList.style.overflowY = 'auto';
+
+        const sortedNames = this.customNames.slice().sort();
+        sortedNames.forEach(n => {
+          const li = document.createElement('li');
+          li.style.display = 'flex';
+          li.style.alignItems = 'center';
+          li.style.marginBottom = '5px';
+
+          const span = document.createElement('span');
+          span.textContent = n;
+          span.style.flex = '1';
+
+          const del = document.createElement('button');
+          del.textContent = '❌';
+          del.style.marginLeft = '10px';
+          del.style.border = '1px solid #ccc';
+          del.style.borderRadius = '5px';
+          del.style.padding = '4px 8px';
+          del.onclick = () => {
+            this.customNames = this.customNames.filter(x => x !== n);
+            this.addLog(`Name gelöscht: ${n}`);
+            this.updateSummary();
+            li.remove();
+          };
+
+          li.appendChild(span);
+          li.appendChild(del);
+          nameList.appendChild(li);
+        });
+        nameWrapper.appendChild(nameList);
+        container.appendChild(nameWrapper);
+
+        
+      };
+
+      const originalAddEntry = app.addEntry.bind(app);
+      app.addEntry = function(item, quantity, note) {
+        originalAddEntry(item, quantity, note);
+        this.updateSummary();
+      };
+
+      const originalAddLog = app.addLog.bind(app);
+      app.addLog = function(msg) {
+        originalAddLog(msg);
+        this.updateSummary();
+      };
+    });
+  </script>
+</body>
+</html>
